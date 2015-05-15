@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	"github.com/mitchellh/goamz/aws"
 )
 
 type App struct {
@@ -81,7 +82,9 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	r.HandleFunc("/about", app.handleAbout)
 
 	a := mux.NewRouter()
+	a.HandleFunc("/", app.handleIndex)
 	a.NotFoundHandler = http.HandlerFunc(app.render404)
+
 	r.Handle("/", app.restrict(a))
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
@@ -146,8 +149,38 @@ func compileTemplates(tmplDir string) (map[string]*template.Template, error) {
 }
 
 // Render renders a template to the ResponseWriter with a 200 status code.
-func (app *App) render(w http.ResponseWriter, r *http.Request, name string, data interface{}) {
-	app.renderStatus(w, name, data, http.StatusOK)
+func (app *App) render(w http.ResponseWriter, r *http.Request, name string, data map[string]interface{}) {
+	ec2Cli, ok := app.creds(w, r)
+	if ok {
+		// if the user is logged in display the list of available regions
+		regions := []struct {
+			Name     string
+			Selected bool
+		}{
+			{aws.APNortheast.Name, false},
+			{aws.APSoutheast.Name, false},
+			{aws.APSoutheast2.Name, false},
+			{aws.EUWest.Name, false},
+			{aws.EUCentral.Name, false},
+			{aws.USEast.Name, false},
+			{aws.USWest.Name, false},
+			{aws.USWest2.Name, false},
+			{aws.SAEast.Name, false},
+			{aws.USGovWest.Name, false},
+			{aws.CNNorth.Name, false},
+		}
+		for i, r := range regions {
+			if r.Name == ec2Cli.Region.Name {
+				regions[i].Selected = true
+				break
+			}
+		}
+		if data == nil {
+			data = make(map[string]interface{})
+		}
+		data["Regions"] = regions
+	}
+	app.renderStatus(w, r, name, data, http.StatusOK)
 }
 
 // Render500 renders the 500.html template with the error message displayed to
@@ -156,17 +189,18 @@ func (app *App) render500(w http.ResponseWriter, r *http.Request, err error) {
 	data := map[string]string{
 		"Error": err.Error(),
 	}
-	app.renderStatus(w, "500.html", data, http.StatusInternalServerError)
+	app.renderStatus(w, r, "500.html", data, http.StatusInternalServerError)
 }
 
 // Render404 renders the 404.html template to the user.
 func (app *App) render404(w http.ResponseWriter, r *http.Request) {
 	app.Logf("%s not found", r.RequestURI)
-	app.renderStatus(w, "404.html", nil, http.StatusNotFound)
+	app.renderStatus(w, r, "404.html", nil, http.StatusNotFound)
 }
 
 func (app *App) renderStatus(
 	w http.ResponseWriter,
+	r *http.Request,
 	name string,
 	data interface{},
 	status int) {

@@ -7,16 +7,30 @@ import (
 	"github.com/mitchellh/goamz/ec2"
 )
 
-func (app *App) handleIndex(w http.ResponseWriter, r *http.Request, cli *ec2.EC2) {
+func (app *App) handleIndex(w http.ResponseWriter, r *http.Request) {
+	_, ok := app.creds(w, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != "GET" {
+		http.Error(w, "Method not implemented", http.StatusNotImplemented)
+		return
+	}
+	app.render(w, r, "index.html", nil)
 }
 
 func (app *App) handleLogin(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
+	if r.Method == "GET" {
+		if _, ok := app.creds(w, r); ok {
+			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+			return
+		}
+
 		app.render(w, r, "login.html", nil)
 		return
-	case "POST":
-	default:
+	}
+	if r.Method != "POST" {
 		http.Error(w, "Method not implemented", http.StatusNotImplemented)
 		return
 	}

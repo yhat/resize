@@ -1,1 +1,12 @@
-<div>NAV!</div>
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <form class="navbar-form navbar-right">
+        <label for="awsRegion">AWS Region</label>
+          <select id="awsRegion" class="form-control">
+          {{ range $i, $region := .Regions }}
+              <option {{ if $region.Selected }}selected{{ end }}>{{ $region.Name }}</option>
+          {{ end }}
+          </select>
+      </form>
+    </div>
+</nav>
