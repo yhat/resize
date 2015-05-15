@@ -1,8 +1,10 @@
 package resize
 
 import (
+	"crypto/rand"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 )
 
 type App struct {
@@ -25,6 +28,8 @@ type App struct {
 	// not be used on a production server.
 	ReloadTemplates bool
 
+	store *sessions.CookieStore
+
 	tmplDir string
 
 	tmpl   map[string]*template.Template
@@ -33,12 +38,24 @@ type App struct {
 
 // NewApp initializes an App by parsing templates, and initializing
 // the internal path router.
-func NewApp(static, templates string) (*App, error) {
+// If store is nil, a CookieStore with a random secret key is provided.
+func NewApp(static, templates string, store *sessions.CookieStore) (*App, error) {
 	app := &App{tmplDir: templates}
 
 	err := app.compileTemplates(templates)
 	if err != nil {
 		return nil, fmt.Errorf("compiling templates %v", err)
+	}
+
+	if store != nil {
+		app.store = store
+	} else {
+		secretKey := make([]byte, 32)
+		_, err = io.ReadFull(rand.Reader, secretKey)
+		if err != nil {
+			return nil, err
+		}
+		app.store = sessions.NewCookieStore(secretKey)
 	}
 
 	// helper functions for serving static assets
@@ -76,6 +93,15 @@ func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // CompileTemplates parses a template directory
 func (app *App) compileTemplates(tmplDir string) error {
+	tmpl, err := compileTemplates(tmplDir)
+	if err != nil {
+		return err
+	}
+	app.tmpl = tmpl
+	return nil
+}
+
+func compileTemplates(tmplDir string) (map[string]*template.Template, error) {
 	join := filepath.Join
 
 	includes := join(tmplDir, "includes")
@@ -85,17 +111,17 @@ func (app *App) compileTemplates(tmplDir string) error {
 	var err error
 	tmpl, err = template.ParseGlob(join(includes, "*.html"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if _, err = tmpl.ParseGlob(join(layouts, "*.html")); err != nil {
-		return err
+		return nil, err
 	}
 
 	files, err := ioutil.ReadDir(tmplDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	app.tmpl = map[string]*template.Template{}
+	m := make(map[string]*template.Template)
 
 	for _, info := range files {
 		name := info.Name()
@@ -104,15 +130,15 @@ func (app *App) compileTemplates(tmplDir string) error {
 		}
 		t, err := tmpl.Clone()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		_, err = t.ParseFiles(join(tmplDir, name))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		app.tmpl[name] = t
+		m[name] = t
 	}
-	return nil
+	return m, nil
 }
 
 // Render renders a template to the ResponseWriter with a 200 status code.

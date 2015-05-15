@@ -26,7 +26,7 @@ func main() {
 
 	flag.Parse()
 
-	app, err := resize.NewApp(*public, *templates)
+	app, err := resize.NewApp(*public, *templates, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

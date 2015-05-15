@@ -8,9 +8,8 @@ import (
 )
 
 func TestCompilteTemplates(t *testing.T) {
-	app := &App{}
 	tmplDir := "../templates"
-	err := app.CompileTemplates(tmplDir)
+	tmpl, err := compileTemplates(tmplDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +25,7 @@ func TestCompilteTemplates(t *testing.T) {
 		if !strings.HasSuffix(name, ".html") {
 			continue
 		}
-		tmpl, ok := app.tmpl[name]
+		tmpl, ok := tmpl[name]
 		if !ok {
 			t.Errorf("no template named %s", name)
 			continue
