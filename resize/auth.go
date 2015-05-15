@@ -44,3 +44,20 @@ func (app *App) creds(w http.ResponseWriter, r *http.Request) (*ec2.EC2, bool) {
 	ec2Cli, ok := session.Values["ec2"].(*ec2.EC2)
 	return ec2Cli, ok
 }
+
+// restrict a handler to only request which have been logged in
+func (app *App) restrict(h http.Handler) http.Handler {
+	hf := func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := app.creds(w, r); ok {
+			h.ServeHTTP(w, r)
+			return
+		}
+
+		if r.Method == "GET" {
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
+		}
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
+	return http.HandlerFunc(hf)
+}

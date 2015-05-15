@@ -77,8 +77,12 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 
 	r.Handle("/favicon.ico", serveFile("favicon.ico"))
 
-	r.HandleFunc("/", app.handleIndex)
+	r.HandleFunc("/login", app.handleLogin)
 	r.HandleFunc("/about", app.handleAbout)
+
+	a := mux.NewRouter()
+	a.NotFoundHandler = http.HandlerFunc(app.render404)
+	r.Handle("/", app.restrict(a))
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
 	app.router = r
