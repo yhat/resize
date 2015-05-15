@@ -75,3 +75,8 @@ func (app *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (app *App) handleAbout(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "about.html", nil)
 }
+
+func (app *App) handleLogout(w http.ResponseWriter, r *http.Request) {
+	app.logout(w, r)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}

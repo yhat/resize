@@ -1,5 +1,13 @@
 <nav class="navbar navbar-default">
-    <div class="container-fluid">
+    <div class="container-fluid" style="padding-left: 30px; padding-right: 30px;">
+      <ul class="nav navbar-nav navbar-left">
+        <li><a href="/">EC2 Resize</a></li>
+        <li><a href="/about">About</a></li>
+      </ul>
+      {{ if .Regions }}
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="/logout">Logout</a></li>
+      </ul>
       <form class="navbar-form navbar-right">
         <label for="awsRegion">AWS Region</label>
           <select id="awsRegion" class="form-control">
@@ -8,5 +16,6 @@
           {{ end }}
           </select>
       </form>
+      {{ end }}
     </div>
 </nav>

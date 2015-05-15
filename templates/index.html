@@ -1,6 +1,5 @@
 {{ define "content" }}
-<h2>EC2 Resize</h2>
-
+<h3>Available Instances</h3>
 {{ if .Instances }}
 <table class="table table-striped">
   <thead>
@@ -26,9 +25,6 @@
 
 {{ define "title" }}Home{{ end }}
 {{ define "headscripts" }}{{ end }}
-{{ define "nav" }}
-    {{ template "nav.html" . }}
-{{ end }}
 
 {{ define "footerscripts" }}
 {{ end }}

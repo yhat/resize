@@ -79,6 +79,7 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	r.Handle("/favicon.ico", serveFile("favicon.ico"))
 
 	r.HandleFunc("/login", app.handleLogin)
+	r.HandleFunc("/logout", app.handleLogout)
 	r.HandleFunc("/about", app.handleAbout)
 
 	a := mux.NewRouter()
