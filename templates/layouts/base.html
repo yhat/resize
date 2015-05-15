@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]> <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <base href="/" >
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>{{ template "title" . }} | EC2 Resize</title>
+    <meta name="description" content="Yhat EC2 Resize">
+    <meta name="viewport" content="width=device-width">
+    <!-- styles -->
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <!-- scripts -->
+    {{ template "headscripts" . }}
+</head>
+<body>
+    <!--[if lt IE 10]>
+    <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+    <![endif]-->
+    {{ template "nav.html" . }}
+    <div style="max-width: 1000px; margin: 0 auto;">
+        {{ template "content" . }}
+    </div><!-- row main-row -->
+    <footer>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+        {{ template "footerscripts" . }}
+    </footer>
+</body>
+</html>
