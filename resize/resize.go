@@ -61,6 +61,7 @@ func NewApp(static, templates string) (*App, error) {
 	r.Handle("/favicon.ico", serveFile("favicon.ico"))
 
 	r.HandleFunc("/", app.handleIndex)
+	r.HandleFunc("/about", app.handleAbout)
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
 	app.router = r
