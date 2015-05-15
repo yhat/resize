@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/gorilla/sessions"
 	"github.com/yhat/middleware"
 	"github.com/yhat/resize/resize"
 )
@@ -22,11 +23,18 @@ func main() {
 
 	public := flag.String("public", "./public", "`path` of the directory holding static content")
 	templates := flag.String("templates", "./templates", "`path` of the directory holding app templates")
-	reloadTmpl := flag.Bool("recompile", false, "should the app recompile templates on each request")
+	reloadTmpl := flag.Bool("reload-templates", false, "should the app recompile templates on each request")
+
+	sessionkey := flag.String("sessionkey", "", "secret key for session cookies")
 
 	flag.Parse()
 
-	app, err := resize.NewApp(*public, *templates, nil)
+	var store *sessions.CookieStore
+	if *sessionkey != "" {
+		store = sessions.NewCookieStore([]byte(*sessionkey))
+	}
+
+	app, err := resize.NewApp(*public, *templates, store)
 	if err != nil {
 		log.Fatal(err)
 	}
