@@ -8,7 +8,7 @@ import (
 )
 
 func (app *App) handleIndex(w http.ResponseWriter, r *http.Request) {
-	_, ok := app.creds(w, r)
+	ec2Cli, ok := app.creds(w, r)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -17,7 +17,19 @@ func (app *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not implemented", http.StatusNotImplemented)
 		return
 	}
-	app.render(w, r, "index.html", nil)
+	resp, err := ec2Cli.Instances(nil, nil)
+	if err != nil {
+		app.render500(w, r, err)
+		return
+	}
+	instances := []ec2.Instance{}
+	for _, res := range resp.Reservations {
+		for _, inst := range res.Instances {
+			instances = append(instances, inst)
+		}
+	}
+	data := map[string]interface{}{"Instances": instances}
+	app.render(w, r, "index.html", data)
 }
 
 func (app *App) handleLogin(w http.ResponseWriter, r *http.Request) {

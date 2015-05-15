@@ -94,6 +94,10 @@ func TestLogin(t *testing.T) {
 		if creds.Auth.SecretKey != secretKey {
 			t.Errorf("incorrect secret key saved")
 		}
+		_, err := creds.Instances(nil, nil)
+		if err != nil {
+			t.Errorf("could not get instances with stored creds: %v", err)
+		}
 		w.WriteHeader(http.StatusOK)
 	}
 	s = httptest.NewServer(http.HandlerFunc(hf))

@@ -1,5 +1,27 @@
 {{ define "content" }}
 <h2>EC2 Resize</h2>
+
+{{ if .Instances }}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Instance ID</th>
+      <th>State</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{ range $i, $instance := .Instances }}
+    <tr>
+      <td>{{ $instance.InstanceId }}</td>
+      <td>{{ $instance.State.Name }}</td>
+    </tr>
+    {{ end }}
+  </tbody>
+</table>
+{{ else }}
+<p>No instances in this region!</p>
+{{ end }}
+
 {{ end }}
 
 {{ define "title" }}Home{{ end }}

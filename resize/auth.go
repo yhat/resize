@@ -42,7 +42,10 @@ func (app *App) logout(w http.ResponseWriter, r *http.Request) {
 func (app *App) creds(w http.ResponseWriter, r *http.Request) (*ec2.EC2, bool) {
 	session, _ := app.store.Get(r, "yhat-resize")
 	ec2Cli, ok := session.Values["ec2"].(*ec2.EC2)
-	return ec2Cli, ok
+	if !ok {
+		return nil, false
+	}
+	return ec2.New(ec2Cli.Auth, ec2Cli.Region), ok
 }
 
 // restrict a handler to only request which have been logged in
