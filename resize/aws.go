@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/yhat/scrape"
+
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -30,18 +32,18 @@ type InstanceType struct {
 // parseRow parses a row from the instance types matrix into it's given
 // InstanceType
 func parseRow(row *html.Node) (InstanceType, error) {
-	cols := findAll(row, byTag(atom.Td))
+	cols := scrape.Find(row, scrape.ByTag(atom.Td))
 	if len(cols) != 12 {
 		return InstanceType{}, fmt.Errorf("expected 12 columns, got %d", len(cols))
 	}
 	yesNo := func(col *html.Node) bool {
-		return strings.ToLower(text(col)) == "yes"
+		return strings.ToLower(scrape.Text(col)) == "yes"
 	}
 	t := InstanceType{
-		Name:               text(cols[0]),
-		Storage:            text(cols[3]),
-		NetworkSpec:        text(cols[4]),
-		Processor:          text(cols[5]),
+		Name:               scrape.Text(cols[0]),
+		Storage:            scrape.Text(cols[3]),
+		NetworkSpec:        scrape.Text(cols[4]),
+		Processor:          scrape.Text(cols[5]),
 		IntelAVX:           yesNo(cols[7]),
 		IntelAVX2:          yesNo(cols[8]),
 		IntelTurbo:         yesNo(cols[9]),
@@ -49,58 +51,23 @@ func parseRow(row *html.Node) (InstanceType, error) {
 		EnhancedNetworking: yesNo(cols[11]),
 	}
 	var err error
-	t.CPUs, err = strconv.Atoi(text(cols[1]))
+	t.CPUs, err = strconv.Atoi(scrape.Text(cols[1]))
 	if err != nil {
-		err = fmt.Errorf("expected number for CPUs, got '%s'", text(cols[1]))
+		err = fmt.Errorf("expected number for CPUs, got '%s'", scrape.Text(cols[1]))
 		return InstanceType{}, err
 	}
-	t.Memory, err = strconv.ParseFloat(text(cols[2]), 64)
+	t.Memory, err = strconv.ParseFloat(scrape.Text(cols[2]), 64)
 	if err != nil {
-		err = fmt.Errorf("expected number for Memory, got '%s'", text(cols[2]))
+		err = fmt.Errorf("expected number for Memory, got '%s'", scrape.Text(cols[2]))
 		return InstanceType{}, err
 	}
 
-	t.ClockSpeed, err = strconv.ParseFloat(text(cols[6]), 64)
+	t.ClockSpeed, err = strconv.ParseFloat(scrape.Text(cols[6]), 64)
 	if err != nil {
-		err = fmt.Errorf("expected number for Memory, got '%s'", text(cols[2]))
+		err = fmt.Errorf("expected number for Memory, got '%s'", scrape.Text(cols[2]))
 		return InstanceType{}, err
 	}
 	return t, nil
-}
-
-func attr(n *html.Node, key string) string {
-	for _, a := range n.Attr {
-		if a.Key == key {
-			return a.Val
-		}
-	}
-	return ""
-}
-
-type nodeMatcher func(*html.Node) bool
-
-func findAll(n *html.Node, matcher nodeMatcher) []*html.Node {
-	if matcher(n) {
-		return []*html.Node{n}
-	}
-	matched := []*html.Node{}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		matched = append(matched, findAll(c, matcher)...)
-	}
-	return matched
-}
-
-func byTag(a atom.Atom) nodeMatcher {
-	return func(n *html.Node) bool { return n.DataAtom == a }
-}
-
-func text(n *html.Node) string {
-	textNodes := findAll(n, func(n *html.Node) bool { return n.Type == html.TextNode })
-	parts := make([]string, len(textNodes))
-	for i, node := range textNodes {
-		parts[i] = node.Data
-	}
-	return strings.TrimSpace(strings.Join(parts, " "))
 }
 
 // InstanceTypes makes a request to AWS and parses the current available EC2
@@ -125,7 +92,7 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 
 	var findMatrix func(node *html.Node) (*html.Node, bool)
 	findMatrix = func(node *html.Node) (*html.Node, bool) {
-		if attr(node, "id") == "instance-type-matrix" {
+		if scrape.Attr(node, "id") == "instance-type-matrix" {
 			return node, true
 		}
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
@@ -152,7 +119,7 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 
 	var section *html.Node
 	for section = matrixHeader.Parent; section != nil; section = section.Parent {
-		classes := strings.Fields(attr(section, "class"))
+		classes := strings.Fields(scrape.Attr(section, "class"))
 		if contains(classes, "section") && contains(classes, "title-wrapper") {
 			break
 		}
@@ -162,7 +129,7 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 	}
 	var next *html.Node
 	for next = section.NextSibling; next != nil; next = next.NextSibling {
-		classes := strings.Fields(attr(next, "class"))
+		classes := strings.Fields(scrape.Attr(next, "class"))
 		if contains(classes, "section") && contains(classes, "table-wrapper") {
 			break
 		}
@@ -170,7 +137,7 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 	if next == nil {
 		return nil, fmt.Errorf("malformed HTML: table-wrapper not found")
 	}
-	rows := findAll(next, byTag(atom.Tr))
+	rows := scrape.Find(next, scrape.ByTag(atom.Tr))
 
 	if len(rows) < 3 {
 		return nil, fmt.Errorf("malformed HTML: could not find table")
