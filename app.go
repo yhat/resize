@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/gorilla/sessions"
 	"github.com/yhat/middleware"
@@ -27,6 +29,8 @@ func main() {
 
 	sessionkey := flag.String("sessionkey", "", "secret key for session cookies")
 
+	accessLog := flag.String("accesslog", "", "file for access log")
+
 	flag.Parse()
 
 	var store *sessions.CookieStore
@@ -40,6 +44,18 @@ func main() {
 	}
 	app.ReloadTemplates = *reloadTmpl
 	h := middleware.GZip(app)
+
+	var logDest io.Writer
+	if *accessLog == "" {
+		logDest = os.Stderr
+	} else {
+		file, err := os.OpenFile(*accessLog, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		logDest = file
+	}
+	h = middleware.Log(logDest, h)
 
 	httpURL := (&url.URL{Scheme: "http", Host: expandHost(*httpAddr), Path: "/"}).String()
 

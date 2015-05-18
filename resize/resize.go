@@ -29,6 +29,10 @@ type App struct {
 	// not be used on a production server.
 	ReloadTemplates bool
 
+	// The HTTP client used for all request to AWS.
+	// If nil, the aws.Retrying client is used.
+	HTTPClient *http.Client
+
 	store *sessions.CookieStore
 
 	tmplDir string
@@ -60,7 +64,7 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	}
 
 	// helper functions for serving static assets
-	fileServer := func(path string) http.Handler {
+	serveDir := func(path string) http.Handler {
 		return http.FileServer(http.Dir(filepath.Join(static, path)))
 	}
 	serveFile := func(path string) http.Handler {
@@ -70,11 +74,14 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 		})
 	}
 
+	// restrict a handle to only those which have logged in
+	restrict := func(hf http.HandlerFunc) http.Handler { return app.restrict(hf) }
+
 	// Define routes
 	r := mux.NewRouter()
 
-	r.PathPrefix("/css/").Handler(http.StripPrefix("/css/", fileServer("css")))
-	r.PathPrefix("/js/").Handler(http.StripPrefix("/js/", fileServer("js")))
+	r.PathPrefix("/css/").Handler(http.StripPrefix("/css/", serveDir("css")))
+	r.PathPrefix("/js/").Handler(http.StripPrefix("/js/", serveDir("js")))
 
 	r.Handle("/favicon.ico", serveFile("favicon.ico"))
 
@@ -82,11 +89,9 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	r.HandleFunc("/logout", app.handleLogout)
 	r.HandleFunc("/about", app.handleAbout)
 
-	a := mux.NewRouter()
-	a.HandleFunc("/", app.handleIndex)
-	a.NotFoundHandler = http.HandlerFunc(app.render404)
-
-	r.Handle("/", app.restrict(a))
+	r.Handle("/", restrict(app.handleIndex))
+	r.Handle("/region", restrict(app.handleRegion))
+	r.Handle("/instance/{instance}", restrict(app.handleInstance))
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
 	app.router = r
@@ -151,7 +156,7 @@ func compileTemplates(tmplDir string) (map[string]*template.Template, error) {
 
 // Render renders a template to the ResponseWriter with a 200 status code.
 func (app *App) render(w http.ResponseWriter, r *http.Request, name string, data map[string]interface{}) {
-	ec2Cli, ok := app.creds(w, r)
+	ec2Cli, ok := app.creds(r)
 	if ok {
 		// if the user is logged in display the list of available regions
 		regions := []struct {
@@ -236,4 +241,11 @@ func (app *App) Logf(format string, a ...interface{}) {
 	} else {
 		app.Logger.Printf(format, a...)
 	}
+}
+
+func (app *App) httpClient() *http.Client {
+	if app.HTTPClient == nil {
+		return aws.RetryingClient
+	}
+	return app.HTTPClient
 }

@@ -1,0 +1,34 @@
+{{ define "content" }}
+<h3>Instance {{ .Instance.InstanceId }}</h3>
+<table class="table table-striped">
+<tbody>
+<tr><td>Instance Id</td><td>{{ .Instance.InstanceId }}</td></tr>
+<tr><td>Instance Type</td><td>{{ .Instance.InstanceType }}</td></tr>
+<tr><td>Image Id</td><td>{{ .Instance.ImageId }}</td></tr>
+<tr><td>Private DNSName</td><td>{{ .Instance.PrivateDNSName }}</td></tr>
+<tr><td>DNSName</td><td>{{ .Instance.DNSName }}</td></tr>
+<tr><td>Key Name</td><td>{{ .Instance.KeyName }}</td></tr>
+<tr><td>Hypervisor</td><td>{{ .Instance.Hypervisor }}</td></tr>
+<tr><td>Virt Type</td><td>{{ .Instance.VirtType }}</td></tr>
+<tr><td>Monitoring</td><td>{{ .Instance.Monitoring }}</td></tr>
+<tr><td>Avail Zone</td><td>{{ .Instance.AvailZone }}</td></tr>
+<tr><td>Tenancy</td><td>{{ .Instance.Tenancy }}</td></tr>
+<tr><td>Placement Group Name</td><td>{{ .Instance.PlacementGroupName }}</td></tr>
+<tr><td>Vpc Id</td><td>{{ .Instance.VpcId }}</td></tr>
+<tr><td>Subnet Id</td><td>{{ .Instance.SubnetId }}</td></tr>
+<tr><td>Iam Instance Profile</td><td>{{ .Instance.IamInstanceProfile }}</td></tr>
+<tr><td>Private Ip Address</td><td>{{ .Instance.PrivateIpAddress }}</td></tr>
+<tr><td>Public Ip Address</td><td>{{ .Instance.PublicIpAddress }}</td></tr>
+<tr><td>Architecture</td><td>{{ .Instance.Architecture }}</td></tr>
+<tr><td>Launch Time</td><td>{{ .Instance.LaunchTime }}</td></tr>
+<tr><td>Ebs Optimized</td><td>{{ .Instance.EbsOptimized }}</td></tr>
+<tr><td>Root Device Name</td><td>{{ .Instance.RootDeviceName }}</td></tr>
+</tbody>
+</table>
+{{ end }}
+
+{{ define "title" }}{{ .Instance.InstanceId }}{{ end }}
+{{ define "headscripts" }}{{ end }}
+
+{{ define "footerscripts" }}
+{{ end }}

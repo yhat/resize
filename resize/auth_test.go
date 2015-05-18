@@ -82,7 +82,7 @@ func TestLogin(t *testing.T) {
 		t.Errorf("bad response from server %s", resp.Status)
 	}
 	hf = func(w http.ResponseWriter, r *http.Request) {
-		creds, ok := app.creds(w, r)
+		creds, ok := app.creds(r)
 		if !ok {
 			t.Errorf("no credentials found for client who logged in")
 			w.WriteHeader(http.StatusUnauthorized)

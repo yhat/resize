@@ -5,13 +5,25 @@
   <thead>
     <tr>
       <th>Instance ID</th>
+      <th>Name</th>
       <th>State</th>
     </tr>
   </thead>
   <tbody>
     {{ range $i, $instance := .Instances }}
     <tr>
-      <td>{{ $instance.InstanceId }}</td>
+      <td>
+        <a href="/instance/{{ $instance.InstanceId }}">
+          {{ $instance.InstanceId }}
+        </a>
+      </td>
+      <td>
+        {{ range $j, $tag := $instance.Tags }}
+            {{ if eq $tag.Key "Name" }}
+                {{ $tag.Value }}
+            {{ end }}
+        {{ end }}
+      </td>
       <td>{{ $instance.State.Name }}</td>
     </tr>
     {{ end }}
