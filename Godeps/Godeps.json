@@ -36,7 +36,7 @@
 		},
 		{
 			"ImportPath": "github.com/yhat/scrape",
-			"Rev": "b435a24f17f8ada8a9d10ac95b90d10c040204a2"
+			"Rev": "7a5f0aa59f2753f2c27bbd5a73a4ea5f3e1035b2"
 		},
 		{
 			"ImportPath": "golang.org/x/net/html",
