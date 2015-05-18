@@ -1,9 +1,32 @@
 {{ define "content" }}
+<ol class="breadcrumb">
+  <li><a href="/">Instances</a></li>
+  <li class="active">{{ .Instance.InstanceId }}</li>
+</ol>
+
 <h3>Instance {{ .Instance.InstanceId }}</h3>
+
+<h4>Elastic IP</h4>
+{{ if .Address }}
+{{ .Address.PublicIp }}
+{{ else }}
+<p>No Elastic IP associated with this instance.</p>
+{{ end }}
+
+<h4>State</h4>
+<p>{{ .Instance.State.Name }}</p>
+
+<h4>Current Instance Type</h4>
+<p>{{ .Instance.InstanceType }}</p>
+
+<a
+  href="/instance/{{ .Instance.State.Name }}/resize"
+  class="btn btn-primary">Begin Resize</a>
+
+<h4>Further Details</h4>
 <table class="table table-striped">
 <tbody>
 <tr><td>Instance Id</td><td>{{ .Instance.InstanceId }}</td></tr>
-<tr><td>Instance Type</td><td>{{ .Instance.InstanceType }}</td></tr>
 <tr><td>Image Id</td><td>{{ .Instance.ImageId }}</td></tr>
 <tr><td>Private DNSName</td><td>{{ .Instance.PrivateDNSName }}</td></tr>
 <tr><td>DNSName</td><td>{{ .Instance.DNSName }}</td></tr>

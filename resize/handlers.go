@@ -153,5 +153,12 @@ func (app *App) handleInstance(w http.ResponseWriter, r *http.Request) {
 	}
 	instance := instances[0]
 	data := map[string]interface{}{"Instance": instance}
+
+	filter := ec2.NewFilter()
+	filter.Add("instance-id", instanceId)
+	addrResp, err := ec2Cli.Addresses(nil, nil, filter)
+	if err == nil && (len(addrResp.Addresses) == 1) {
+		data["Address"] = addrResp.Addresses[0]
+	}
 	app.render(w, r, "instance.html", data)
 }
