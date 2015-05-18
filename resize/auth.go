@@ -53,7 +53,8 @@ func (app *App) creds(r *http.Request) (ec2Cli *ec2.EC2, ok bool) {
 		return nil, false
 	}
 	// github.com/gorilla/sessions uses encoding/gob to store data which does
-	// not capture hidden fields. To recreate the hidden fields.
+	// not capture hidden fields. To recreate the hidden fields call the
+	// constructor.
 	return ec2.NewWithClient(ec2Cli.Auth, ec2Cli.Region, app.httpClient()), ok
 }
 
