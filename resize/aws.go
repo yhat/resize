@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mitchellh/goamz/ec2"
 	"github.com/yhat/scrape"
 
 	"golang.org/x/net/html"
@@ -151,4 +152,16 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 		}
 	}
 	return types, nil
+}
+
+func resize(ec2Cli *ec2.EC2, instance ec2.Instance, newType string) error {
+	ops := ec2.ModifyInstance{InstanceType: newType}
+	resp, err := ec2Cli.ModifyInstance(instance.InstanceId, &ops)
+	if err != nil {
+		return err
+	}
+	if !resp.Return {
+		return fmt.Errorf("bad response from AWS")
+	}
+	return nil
 }
