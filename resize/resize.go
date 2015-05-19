@@ -80,6 +80,7 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 
 	r.PathPrefix("/css/").Handler(http.StripPrefix("/css/", serveDir("css")))
 	r.PathPrefix("/js/").Handler(http.StripPrefix("/js/", serveDir("js")))
+	r.PathPrefix("/img/").Handler(http.StripPrefix("/img/", serveDir("img")))
 
 	r.Handle("/favicon.ico", serveFile("favicon.ico"))
 
@@ -90,6 +91,7 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	r.Handle("/", restrict(app.handleIndex))
 	r.Handle("/region", restrict(app.handleRegion))
 	r.Handle("/instance/{instance}", restrict(app.handleInstance))
+	r.Handle("/instance/{instance}/resize", restrict(app.handleResize))
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
 	app.router = r

@@ -4,7 +4,7 @@
 </ol>
 <h3>Available Instances</h3>
 {{ if .Instances }}
-<table class="table table-striped">
+<table class="table table-striped" id="instances">
   <thead>
     <tr>
       <th>Instance ID</th>
@@ -14,23 +14,28 @@
   </thead>
   <tbody>
     {{ range $i, $instance := .Instances }}
-    <tr>
-      <td>
-        <a href="/instance/{{ $instance.InstanceId }}">
-          {{ $instance.InstanceId }}
-        </a>
-      </td>
-      <td>
-        {{ range $j, $tag := $instance.Tags }}
-            {{ if eq $tag.Key "Name" }}
-                {{ $tag.Value }}
-            {{ end }}
-        {{ end }}
-      </td>
-      <td>{{ $instance.State.Name }}</td>
-    </tr>
+      {{ if (ne $instance.State.Name "terminated") }}
+      <tr>
+        <td>
+          <a href="/instance/{{ $instance.InstanceId }}">
+            {{ $instance.InstanceId }}
+          </a>
+        </td>
+        <td>
+          {{ range $j, $tag := $instance.Tags }}
+              {{ if eq $tag.Key "Name" }}
+                  {{ $tag.Value }}
+              {{ end }}
+          {{ end }}
+        </td>
+        <td>{{ $instance.State.Name }}</td>
+      </tr>
+      {{ end }}
     {{ end }}
   </tbody>
+  <div id="loader" class="container hide" style="margin:0 auto;width:155px">
+    <img src="/img/loader.gif">
+  </div>
 </table>
 {{ else }}
 <p>No instances in this region!</p>

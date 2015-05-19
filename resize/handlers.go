@@ -160,5 +160,49 @@ func (app *App) handleInstance(w http.ResponseWriter, r *http.Request) {
 	if err == nil && (len(addrResp.Addresses) == 1) {
 		data["Address"] = addrResp.Addresses[0]
 	}
+	types, err := InstanceTypes(nil)
+	if err != nil {
+		app.render500(w, r, err)
+		return
+	}
+	data["InstanceTypes"] = types
+
 	app.render(w, r, "instance.html", data)
+}
+
+func (app *App) handleResize(w http.ResponseWriter, r *http.Request) {
+	ec2Cli, ok := app.creds(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if r.Method != "POST" {
+		http.Error(w, "Method not implemented", http.StatusNotImplemented)
+		return
+	}
+
+	instanceId := mux.Vars(r)["instance"]
+	if instanceId == "" {
+		app.render404(w, r)
+		return
+	}
+
+	currentStatus := r.URL.Query().Get("status")
+	newType := r.FormValue("new-type")
+	switch currentStatus {
+	case "running":
+		if err := stopAndWait(ec2Cli, instanceId); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	case "stopped":
+		break
+	default:
+		app.render500(w, r, fmt.Errorf("The server is not in a state from which its size can be changed. The server's state must be either 'stopped' or 'running.'"))
+		return
+	}
+	if err := resize(ec2Cli, instanceId, newType); err != nil {
+		app.render500(w, r, fmt.Errorf("Could not resize: %v", err))
+		return
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/goamz/ec2"
 	"github.com/yhat/scrape"
@@ -154,14 +155,50 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 	return types, nil
 }
 
-func resize(ec2Cli *ec2.EC2, instance ec2.Instance, newType string) error {
+func stopAndWait(ec2Cli *ec2.EC2, id string) error {
+	if _, err := ec2Cli.StopInstances(id); err != nil {
+		return fmt.Errorf("error stopping instance: %v", err)
+	}
+	for i := 0; i < 15; i++ {
+		time.Sleep(time.Second * 3)
+		opts := ec2.DescribeInstanceStatus{
+			InstanceIds:         []string{id},
+			IncludeAllInstances: true,
+		}
+		resp, err := ec2Cli.DescribeInstanceStatus(&opts, nil)
+		if err != nil {
+			return fmt.Errorf("error checking instance status: %v", err)
+		}
+		code := -1
+		for _, status := range resp.InstanceStatus {
+			if status.InstanceId == id {
+				code = status.InstanceState.Code
+			}
+		}
+		if code == -1 {
+			return fmt.Errorf("instance status not available")
+		} else if code == 0 || code == 64 {
+			continue
+		} else if code == 80 {
+			break
+		} else {
+			return fmt.Errorf("unexpected instance state: %s", code)
+		}
+	}
+	return nil
+}
+
+func resize(ec2Cli *ec2.EC2, id string, newType string) error {
 	ops := ec2.ModifyInstance{InstanceType: newType}
-	resp, err := ec2Cli.ModifyInstance(instance.InstanceId, &ops)
+	resp, err := ec2Cli.ModifyInstance(id, &ops)
 	if err != nil {
-		return err
+		return fmt.Errorf("error modifying instance: %v", err)
 	}
 	if !resp.Return {
 		return fmt.Errorf("bad response from AWS")
+	}
+	if _, err := ec2Cli.StartInstances(id); err != nil {
+		return fmt.Errorf("error starting instance: %v", err)
 	}
 	return nil
 }

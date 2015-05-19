@@ -16,12 +16,17 @@
 <h4>State</h4>
 <p>{{ .Instance.State.Name }}</p>
 
-<h4>Current Instance Type</h4>
-<p>{{ .Instance.InstanceType }}</p>
-
-<a
-  href="/instance/{{ .Instance.State.Name }}/resize"
-  class="btn btn-primary">Begin Resize</a>
+<form method="POST" action="/instance/{{ .Instance.InstanceId }}/resize?status={{ .Instance.State.Name }}" id="resize">
+    <h5>Change Instance Type (currently {{ .Instance.InstanceType }})</h5>
+    <select name="new-type" class="form-control" style="width:20%;margin-bottom:20px">
+        {{ range .InstanceTypes }}
+        <option value="{{ .Name }}">
+            {{ .Name }}
+        </option>
+        {{ end }}
+    </select>
+<button type="submit" class="btn btn-primary">Begin Resize</button>
+</form>
 
 <h4>Further Details</h4>
 <table class="table table-striped">
