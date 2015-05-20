@@ -8,7 +8,23 @@ import (
 	"strings"
 
 	"github.com/mitchellh/goamz/aws"
+	"golang.org/x/net/websocket"
 )
+
+var helpers = template.FuncMap{
+	"buttonForState": func(state string) string {
+		switch state {
+		case "running":
+			return "btn-primary"
+		case "shutting-down", "terminated":
+			return "btn-danger"
+		case "stopping", "stopped":
+			return "btn-warning"
+		default:
+			return "btn-default"
+		}
+	},
+}
 
 // CompileTemplates parses a template directory
 func (app *App) compileTemplates(tmplDir string) error {
@@ -26,9 +42,9 @@ func compileTemplates(tmplDir string) (map[string]*template.Template, error) {
 	includes := join(tmplDir, "includes")
 	layouts := join(tmplDir, "layouts")
 
-	var tmpl *template.Template
+	tmpl := template.New("").Funcs(helpers)
 	var err error
-	tmpl, err = template.ParseGlob(join(includes, "*.html"))
+	_, err = tmpl.ParseGlob(join(includes, "*.html"))
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +124,12 @@ func (app *App) render500(w http.ResponseWriter, r *http.Request, err error) {
 func (app *App) render404(w http.ResponseWriter, r *http.Request) {
 	app.Logf("%s not found", r.RequestURI)
 	app.renderStatus(w, r, "404.html", nil, http.StatusNotFound)
+}
+
+func (app *App) wsErr(ws *websocket.Conn, err string) {
+	app.Logf(err)
+	e := Event{Status: "error", Message: err}
+	websocket.JSON.Send(ws, &e)
 }
 
 func (app *App) renderStatus(

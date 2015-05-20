@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/mitchellh/goamz/aws"
+	"golang.org/x/net/websocket"
 )
 
 type App struct {
@@ -91,7 +92,7 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	r.Handle("/", restrict(app.handleIndex))
 	r.Handle("/region", restrict(app.handleRegion))
 	r.Handle("/instance/{instance}", restrict(app.handleInstance))
-	r.Handle("/instance/{instance}/resize", restrict(app.handleResize))
+	r.Handle("/instance/{instance}/resize", websocket.Handler(app.handleResize))
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
 	app.router = r

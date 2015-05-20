@@ -1,7 +1,7 @@
 package resize
 
 import (
-	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -82,38 +82,12 @@ func TestInstanceResize(t *testing.T) {
 	instance := resp.Instances[0]
 
 	//Make sure the test instance is in the running state before we proceed
-	var pollUntilRunning = func(ec2Cli *ec2.EC2, id string) error {
-		for i := 0; i < 10; i++ {
-			time.Sleep(time.Second * 2)
-			opts := ec2.DescribeInstanceStatus{
-				InstanceIds:         []string{id},
-				IncludeAllInstances: true,
-			}
-			resp, err := ec2Cli.DescribeInstanceStatus(&opts, nil)
-			if err != nil {
-				return fmt.Errorf("error getting instance status: %v", err)
-			}
-			code := -1
-			for _, status := range resp.InstanceStatus {
-				if status.InstanceId == id {
-					code = status.InstanceState.Code
-				}
-			}
-			if code == -1 {
-				return fmt.Errorf("State not available for test instance")
-			} else if code == 0 {
-				continue
-			} else if code == 16 {
-				return nil
-			}
-		}
-		return fmt.Errorf("instance did not reach running state")
-	}
-	if err := pollUntilRunning(ec2Cli, instance.InstanceId); err != nil {
+	w := ioutil.Discard
+	if err := pollUntilRunning(ec2Cli, w, instance.InstanceId); err != nil {
 		t.Error(err)
 		return
 	}
-	if err := stopAndWait(ec2Cli, instance.InstanceId); err != nil {
+	if err := stopAndWait(ec2Cli, w, instance.InstanceId); err != nil {
 		t.Error(err)
 		return
 	}
@@ -121,28 +95,26 @@ func TestInstanceResize(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	//The size change won't be reflected until the instance is up and running
-	if err := pollUntilRunning(ec2Cli, instance.InstanceId); err != nil {
-		t.Error(err)
-		return
-	}
-	time.Sleep(time.Second * 3)
-	instanceResp, err := ec2Cli.Instances([]string{instance.InstanceId}, nil)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	for _, r := range instanceResp.Reservations {
-		for _, i := range r.Instances {
-			if i.InstanceId == instance.InstanceId {
-				if i.InstanceType != "t2.medium" {
-					t.Errorf("expected instance type to be t2.medium, but it was %s",
-						i.InstanceType)
+	for i := 0; i < 5; i++ {
+		time.Sleep(time.Second * 3)
+		instanceResp, err := ec2Cli.Instances([]string{instance.InstanceId}, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		for _, r := range instanceResp.Reservations {
+			for _, i := range r.Instances {
+				if i.InstanceId == instance.InstanceId {
+					if i.InstanceType != "t2.medium" {
+						t.Errorf("expected instance type to be t2.medium, but it was %s",
+							i.InstanceType)
+					}
+					return
 				}
-				return
 			}
 		}
+		t.Error("Test instance not found")
+		return
 	}
-
-	t.Error("Test instance not found")
+	t.Error("Timed out waiting for instance size change to be reflected")
 }

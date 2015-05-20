@@ -6,27 +6,42 @@
 
 <h3>Instance {{ .Instance.InstanceId }}</h3>
 
-<h4>Elastic IP</h4>
-{{ if .Address }}
-{{ .Address.PublicIp }}
-{{ else }}
-<p>No Elastic IP associated with this instance.</p>
-{{ end }}
+<div class="row">
+    <h5 id="resizing-message" style="display:none;color:#cccccc">We are currently changing the size of your instance</h5>
 
-<h4>State</h4>
-<p>{{ .Instance.State.Name }}</p>
-
-<form method="POST" action="/instance/{{ .Instance.InstanceId }}/resize?status={{ .Instance.State.Name }}" id="resize">
-    <h5>Change Instance Type (currently {{ .Instance.InstanceType }})</h5>
-    <select name="new-type" class="form-control" style="width:20%;margin-bottom:20px">
-        {{ range .InstanceTypes }}
-        <option value="{{ .Name }}">
-            {{ .Name }}
-        </option>
+    <div class="col-md-3">
+        <h4>Elastic IP</h4>
+        {{ if .Address }}
+        {{ .Address.PublicIp }}
+        {{ else }}
+        <p>No Elastic IP associated with this instance.</p>
         {{ end }}
-    </select>
-<button type="submit" class="btn btn-primary">Begin Resize</button>
-</form>
+    </div>
+
+    <div class="col-md-3">
+        <h4>State</h4>
+        <a href="#" id="instance-state" class="btn  
+        {{ if .Instance.State.Name }}{{ buttonForState (.Instance.State.Name) }}{{ end }}">
+            {{ .Instance.State.Name }}
+        </a>
+    </div>
+
+    <div class="col-md-3">
+        <form method="POST" action="/instance/{{ .Instance.InstanceId }}/resize?status={{ .Instance.State.Name }}" id="resize">
+            <h5>Change Instance Type (currently {{ .Instance.InstanceType }})</h5>
+            <select name="new-type" class="form-control" style="width:60%;margin-bottom:20px" id="change-type">
+                {{ range .InstanceTypes }}
+                {{ if (ne .Name $.Instance.InstanceType) }}
+                <option value="{{ .Name }}">
+                    {{ .Name }}
+                </option>
+                {{ end }}
+                {{ end }}
+            </select>
+            <button type="submit" class="btn btn-primary">Begin Resize</button>
+        </form>
+    </div>
+</div>
 
 <h4>Further Details</h4>
 <table class="table table-striped">

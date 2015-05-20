@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mitchellh/goamz/aws"
 	"github.com/mitchellh/goamz/ec2"
+	"golang.org/x/net/websocket"
 )
 
 func allInstances(resp *ec2.InstancesResp) []ec2.Instance {
@@ -170,39 +171,59 @@ func (app *App) handleInstance(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "instance.html", data)
 }
 
-func (app *App) handleResize(w http.ResponseWriter, r *http.Request) {
+type Event struct {
+	Status  string
+	Message string
+}
+
+func (app *App) handleResize(ws *websocket.Conn) {
+	defer ws.Close()
+
+	r := ws.Request()
 	ec2Cli, ok := app.creds(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	if r.Method != "POST" {
-		http.Error(w, "Method not implemented", http.StatusNotImplemented)
+		app.wsErr(ws, "Unauthorized")
 		return
 	}
 
 	instanceId := mux.Vars(r)["instance"]
 	if instanceId == "" {
-		app.render404(w, r)
+		app.wsErr(ws, "No instance ID included")
 		return
 	}
 
 	currentStatus := r.URL.Query().Get("status")
-	newType := r.FormValue("new-type")
+
+	var newType string
+	if err := websocket.Message.Receive(ws, &newType); err != nil {
+		app.wsErr(ws, fmt.Sprintf("error receiving websocket message: %v", err))
+		return
+	}
+
 	switch currentStatus {
 	case "running":
-		if err := stopAndWait(ec2Cli, instanceId); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := stopAndWait(ec2Cli, ws, instanceId); err != nil {
+			app.wsErr(ws, fmt.Sprintf("error stopping instance: %v", err))
 			return
 		}
 	case "stopped":
 		break
 	default:
-		app.render500(w, r, fmt.Errorf("The server is not in a state from which its size can be changed. The server's state must be either 'stopped' or 'running.'"))
+		app.wsErr(ws, "The server is not in a state from which its size can be changed. The server's state must be either 'stopped' or 'running.'")
 		return
 	}
 	if err := resize(ec2Cli, instanceId, newType); err != nil {
-		app.render500(w, r, fmt.Errorf("Could not resize: %v", err))
+		app.wsErr(ws, fmt.Sprintf("error resizing instance: %v", err))
 		return
+	}
+	if currentStatus == "running" {
+		if _, err := ec2Cli.StartInstances(instanceId); err != nil {
+			app.wsErr(ws, fmt.Sprintf("error starting instance: %v", err))
+			return
+		}
+		if err := pollUntilRunning(ec2Cli, ws, instanceId); err != nil {
+			app.wsErr(ws, fmt.Sprintf("error checking instance status: %v", err))
+			return
+		}
 	}
 }

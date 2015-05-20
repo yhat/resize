@@ -1,7 +1,9 @@
 package resize
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -155,7 +157,7 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 	return types, nil
 }
 
-func stopAndWait(ec2Cli *ec2.EC2, id string) error {
+func stopAndWait(ec2Cli *ec2.EC2, w io.Writer, id string) error {
 	if _, err := ec2Cli.StopInstances(id); err != nil {
 		return fmt.Errorf("error stopping instance: %v", err)
 	}
@@ -172,6 +174,12 @@ func stopAndWait(ec2Cli *ec2.EC2, id string) error {
 		code := -1
 		for _, status := range resp.InstanceStatus {
 			if status.InstanceId == id {
+				e := Event{Status: "message", Message: status.InstanceState.Name}
+				b, err := json.Marshal(e)
+				if err != nil {
+					return fmt.Errorf("error marshalling JSON: %v", err)
+				}
+				w.Write(b)
 				code = status.InstanceState.Code
 			}
 		}
@@ -188,6 +196,40 @@ func stopAndWait(ec2Cli *ec2.EC2, id string) error {
 	return nil
 }
 
+func pollUntilRunning(ec2Cli *ec2.EC2, w io.Writer, id string) error {
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Second * 2)
+		opts := ec2.DescribeInstanceStatus{
+			InstanceIds:         []string{id},
+			IncludeAllInstances: true,
+		}
+		resp, err := ec2Cli.DescribeInstanceStatus(&opts, nil)
+		if err != nil {
+			return fmt.Errorf("error getting instance status: %v", err)
+		}
+		code := -1
+		for _, status := range resp.InstanceStatus {
+			if status.InstanceId == id {
+				e := Event{Status: "message", Message: status.InstanceState.Name}
+				b, err := json.Marshal(e)
+				if err != nil {
+					return fmt.Errorf("error marshalling JSON: %v", err)
+				}
+				w.Write(b)
+				code = status.InstanceState.Code
+			}
+		}
+		if code == -1 {
+			return fmt.Errorf("Could not get state for this instance")
+		} else if code == 0 {
+			continue
+		} else if code == 16 {
+			return nil
+		}
+	}
+	return fmt.Errorf("Timed out waiting for instance to reach running state")
+}
+
 func resize(ec2Cli *ec2.EC2, id string, newType string) error {
 	ops := ec2.ModifyInstance{InstanceType: newType}
 	resp, err := ec2Cli.ModifyInstance(id, &ops)
@@ -196,9 +238,6 @@ func resize(ec2Cli *ec2.EC2, id string, newType string) error {
 	}
 	if !resp.Return {
 		return fmt.Errorf("bad response from AWS")
-	}
-	if _, err := ec2Cli.StartInstances(id); err != nil {
-		return fmt.Errorf("error starting instance: %v", err)
 	}
 	return nil
 }
