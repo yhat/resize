@@ -4,19 +4,16 @@
   <li class="active">{{ .Instance.InstanceId }}</li>
 </ol>
 
-<h3>Instance {{ .Instance.InstanceId }}</h3>
 
-<div class="row">
-    <h5 id="resizing-message" style="display:none;color:#cccccc">We are currently changing the size of your instance</h5>
-
-    <div class="col-md-3">
-        <h4>Elastic IP</h4>
-        {{ if .Address }}
-        {{ .Address.PublicIp }}
-        {{ else }}
-        <p>No Elastic IP associated with this instance.</p>
-        {{ end }}
-    </div>
+<div class="row" style="margin-bottom:60px">
+    <h3>
+        <a href="http://{{ .Instance.DNSName }}" target="_blank">
+            Instance {{ .Instance.InstanceId }}
+        </a>
+    </h3>
+    <h5 id="status-msg" style="display:none;color:#cccccc">
+        Please wait while your instance is updated
+    </h5>
 
     <div class="col-md-3">
         <h4>State</h4>
@@ -27,8 +24,46 @@
     </div>
 
     <div class="col-md-3">
-        <form method="POST" action="/instance/{{ .Instance.InstanceId }}/resize?status={{ .Instance.State.Name }}" id="resize">
+        {{ if .Address }}
+            <h4>Elastic IP</h4>
+            {{ .Address.PublicIp }}
+        {{ else }}
+            {{ if .Addresses }}
+            <form method="POST"
+            action="/instance/{{ .Instance.InstanceId }}/assign-ip?status={{ .Instance.State.Name }}"
+            id="assign-ip" class="change-instance-form">
+                <h4>Elastic IP</h4>
+                <p>No Elastic IP associated with this instance.</p>
+                <select name="new-address" class="form-control"
+                style="width:60%; margin-bottom:20px" id="new-address">
+                    {{ range .Addresses }}
+                    <option value="{{ .AllocationId }}">
+                        {{ .PublicIp }}
+                    </option>
+                    {{ end }}
+                </select>
+                <button type="submit" class="btn btn-primary">
+                    Associate Address
+                </button>
+            </form>
+            {{ else }}
+            <p>You do not have any elastic IPs that can be attached to this instance</p>
+            {{ end }}
+        {{ end }}
+    </div>
+
+    <div class="col-md-3">
+        <form method="POST" action="/instance/{{ .Instance.InstanceId }}/resize?status={{ .Instance.State.Name }}"
+        id="resize" class="change-instance-form">
             <h5>Change Instance Type (currently {{ .Instance.InstanceType }})</h5>
+            {{ if not .Address }}
+            <p>
+                Note that this server's IP address will change after it is resized.
+            </p>
+            <p>
+                You may want to assign an elastic IP to prevent changes to your IP.
+            </p>
+            {{ end }}
             <select name="new-type" class="form-control" style="width:60%;margin-bottom:20px" id="change-type">
                 {{ range .InstanceTypes }}
                 {{ if (ne .Name $.Instance.InstanceType) }}
@@ -41,6 +76,7 @@
             <button type="submit" class="btn btn-primary">Begin Resize</button>
         </form>
     </div>
+
 </div>
 
 <h4>Further Details</h4>

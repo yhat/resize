@@ -92,7 +92,10 @@ func NewApp(static, templates string, store *sessions.CookieStore) (*App, error)
 	r.Handle("/", restrict(app.handleIndex))
 	r.Handle("/region", restrict(app.handleRegion))
 	r.Handle("/instance/{instance}", restrict(app.handleInstance))
-	r.Handle("/instance/{instance}/resize", websocket.Handler(app.handleResize))
+	r.Handle("/instance/{instance}/resize",
+		websocket.Handler(app.handleResize))
+	r.Handle("/instance/{instance}/assign-ip",
+		websocket.Handler(app.handleAssignIp))
 
 	r.NotFoundHandler = http.HandlerFunc(app.render404)
 	app.router = r

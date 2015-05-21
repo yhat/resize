@@ -155,6 +155,13 @@ func (app *App) handleInstance(w http.ResponseWriter, r *http.Request) {
 	instance := instances[0]
 	data := map[string]interface{}{"Instance": instance}
 
+	addresses, err := openIps(ec2Cli)
+	if err != nil {
+		app.render500(w, r, err)
+		return
+	}
+	data["Addresses"] = addresses
+
 	filter := ec2.NewFilter()
 	filter.Add("instance-id", instanceId)
 	addrResp, err := ec2Cli.Addresses(nil, nil, filter)
@@ -200,6 +207,7 @@ func (app *App) handleResize(ws *websocket.Conn) {
 		return
 	}
 
+	//The instance must be stopped before we can change it
 	switch currentStatus {
 	case "running":
 		if err := stopAndWait(ec2Cli, ws, instanceId); err != nil {
@@ -216,6 +224,8 @@ func (app *App) handleResize(ws *websocket.Conn) {
 		app.wsErr(ws, fmt.Sprintf("error resizing instance: %v", err))
 		return
 	}
+	//If the server was running initially, we'll return it to its original
+	//state and keep the user informed of this process
 	if currentStatus == "running" {
 		if _, err := ec2Cli.StartInstances(instanceId); err != nil {
 			app.wsErr(ws, fmt.Sprintf("error starting instance: %v", err))
@@ -226,4 +236,61 @@ func (app *App) handleResize(ws *websocket.Conn) {
 			return
 		}
 	}
+	e := Event{Status: "success"}
+	websocket.JSON.Send(ws, &e)
+}
+
+func (app *App) handleAssignIp(ws *websocket.Conn) {
+	defer ws.Close()
+
+	r := ws.Request()
+	ec2Cli, ok := app.creds(r)
+	if !ok {
+		app.wsErr(ws, "Unauthorized")
+		return
+	}
+
+	instanceId := mux.Vars(r)["instance"]
+	if instanceId == "" {
+		app.wsErr(ws, "No instance ID included")
+		return
+	}
+	currentStatus := r.URL.Query().Get("status")
+
+	var allocId string
+	if err := websocket.Message.Receive(ws, &allocId); err != nil {
+		app.wsErr(ws, fmt.Sprintf("error receiving websocket message: %v", err))
+		return
+	}
+
+	switch currentStatus {
+	case "running":
+		if err := stopAndWait(ec2Cli, ws, instanceId); err != nil {
+			app.wsErr(ws, fmt.Sprintf("error stopping instance: %v", err))
+			return
+		}
+	case "stopped":
+		break
+	default:
+		app.wsErr(ws, "The server is not in a state from which its size can be changed. The server's state must be either 'stopped' or 'running.'")
+		return
+	}
+
+	err := allocateIp(ec2Cli, instanceId, allocId)
+	if err != nil {
+		app.wsErr(ws, fmt.Sprintf("could not allocate elastic IP: %v", err))
+		return
+	}
+	if currentStatus == "running" {
+		if _, err := ec2Cli.StartInstances(instanceId); err != nil {
+			app.wsErr(ws, fmt.Sprintf("error starting instance: %v", err))
+			return
+		}
+		if err := pollUntilRunning(ec2Cli, ws, instanceId); err != nil {
+			app.wsErr(ws, fmt.Sprintf("error checking instance status: %v", err))
+			return
+		}
+	}
+	e := Event{Status: "success"}
+	websocket.JSON.Send(ws, &e)
 }

@@ -157,11 +157,24 @@ func InstanceTypes(client *http.Client) ([]InstanceType, error) {
 	return types, nil
 }
 
+func openIps(ec2Cli *ec2.EC2) (open []ec2.Address, err error) {
+	resp, err := ec2Cli.Addresses(nil, nil, nil)
+	for _, addr := range resp.Addresses {
+		if addr.AssociationId == "" {
+			open = append(open, addr)
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error getting addresses: %v", err)
+	}
+	return open, nil
+}
+
 func stopAndWait(ec2Cli *ec2.EC2, w io.Writer, id string) error {
 	if _, err := ec2Cli.StopInstances(id); err != nil {
 		return fmt.Errorf("error stopping instance: %v", err)
 	}
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 20; i++ {
 		time.Sleep(time.Second * 3)
 		opts := ec2.DescribeInstanceStatus{
 			InstanceIds:         []string{id},
@@ -188,16 +201,16 @@ func stopAndWait(ec2Cli *ec2.EC2, w io.Writer, id string) error {
 		} else if code == 0 || code == 64 {
 			continue
 		} else if code == 80 {
-			break
+			return nil
 		} else {
 			return fmt.Errorf("unexpected instance state: %s", code)
 		}
 	}
-	return nil
+	return fmt.Errorf("timed out waiting for instance to reach 'stopped' state")
 }
 
 func pollUntilRunning(ec2Cli *ec2.EC2, w io.Writer, id string) error {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		time.Sleep(time.Second * 2)
 		opts := ec2.DescribeInstanceStatus{
 			InstanceIds:         []string{id},
@@ -235,6 +248,22 @@ func resize(ec2Cli *ec2.EC2, id string, newType string) error {
 	resp, err := ec2Cli.ModifyInstance(id, &ops)
 	if err != nil {
 		return fmt.Errorf("error modifying instance: %v", err)
+	}
+	if !resp.Return {
+		return fmt.Errorf("bad response from AWS")
+	}
+	return nil
+}
+
+func allocateIp(ec2Cli *ec2.EC2, instanceId string, allocId string) error {
+	opts := &ec2.AssociateAddress{
+		InstanceId:         instanceId,
+		AllocationId:       allocId,
+		AllowReassociation: false,
+	}
+	resp, err := ec2Cli.AssociateAddress(opts)
+	if err != nil {
+		return fmt.Errorf("could not associate address: %v", err)
 	}
 	if !resp.Return {
 		return fmt.Errorf("bad response from AWS")

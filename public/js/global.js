@@ -23,7 +23,7 @@ $(function() {
         e.preventDefault();
     });
 
-    $('#resize').on('submit', function(e) {
+    $('.change-instance-form').on('submit', function(e) {
         e.preventDefault();
         var wsScheme = "";
         if (scheme == "https:") {
@@ -31,63 +31,60 @@ $(function() {
         } else {
             wsScheme += "ws:"
         }
-        var wsUrl = $("#resize").prop('action').replace(scheme, wsScheme),
-            newType = $('#change-type').val(),
-            ws = new WebSocket(wsUrl),
-            resizeSuccessful = true;
+
+        var $form = $(this);
+
+        var wsUrl = $form.prop('action').replace(scheme, wsScheme),
+            newVal = $form.find('option:selected').val(),
+            ws = new WebSocket(wsUrl);
 
         ws.onopen = function() {
-            ws.send(newType);
-            $('#resizing-message').show();
-            $('#resize').addClass('disabled-div');
-        }
-
-        ws.onclose = function() {
-            if (resizeSuccessful) {
-                window.location.reload();
-            }
+            ws.send(newVal);
+            $('#status-msg').show();
+            $('.change-instance-form').addClass('disabled-div');
         }
 
         ws.onerror = function(e) {
-            resizeSuccessful = false;
-            $('#resize').removeClass('disabled-div');
-            console.log(e);
+            $('.change-instance-form').removeClass('disabled-div');
         }
 
         ws.onmessage = function(event) {
             var ev = JSON.parse(event.data);
-            if (ev.Status == "error") {
-                $('#resizing-message')
+            switch (ev.Status) {
+            case "error":
+                $('#status-msg')
                     .css("color", '#e51c23')
-                    .append(ev.Message);
-            } else if (ev.Status == "message") {
+                    .text(ev.Message);
+                $('.change-instance-form').removeClass('disabled-div');
+                break;
+            case "message":
                 var $instanceState = $('#instance-state');
                 $instanceState
-                    .removeClass('btn-primary btn-danger btn-warning btn-default')
-                    .text(ev.Message);
-                switch(ev.Message) {
-                    case "running":
-                        $instanceState.addClass("btn-primary");
-                        break;
-                    case "terminated":
-                        $instanceState.addClass("btn-danger");
-                        break;
-                    case "shutting-down":
-                        $instanceState.addClass("btn-danger");
-                        break;
-                    case "stopped":
-                        $instanceState.addClass("btn-warning");
-                        break;
-                    case "stopping":
-                        $instanceState.addClass("btn-warning");
-                        break;
-                    default:
-                        $instanceState.addClass("btn-default");
-                        break;
-                }
+                .removeClass('btn-primary btn-danger btn-warning btn-default')
+                .text(ev.Message)
+                .addClass(colorForState(ev.Message));
+                break;
+            case "success":
+                window.location.reload();
             }
         }
+    });
 
-    })
+    function colorForState(state) {
+        switch(state) {
+            case "running":
+                return "btn-primary";
+            case "terminated":
+                return "btn-danger";
+            case "shutting-down":
+                return "btn-danger";
+            case "stopped":
+                return "btn-warning";
+            case "stopping":
+                return "btn-warning";
+            default:
+                return "btn-default";
+        }
+    }
 
 });
