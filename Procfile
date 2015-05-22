@@ -1,1 +1,1 @@
-web: app -port $PORT
+web: resize -http :$PORT
